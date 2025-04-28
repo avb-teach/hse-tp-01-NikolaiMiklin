@@ -1,51 +1,37 @@
 #!/bin/bash
 
-[ $# -lt 2 ] || [ $# -gt 3 ] && { echo "error"; exit 1; }
-
-depth=""
-from=""
-to=""
-
-if [ "$1" = "--depth" ]; then
-    [ $# -ne 4 ] && { echo "error"; exit 1; }
-    depth=$2
-    from=$3
-    to=$4
-else
-    [ $# -ne 2 ] && { echo "error"; exit 1; }
-    from=$1
-    to=$2
+if [ "$#" -ne 2 ]; then
+    echo "Использование: $0 /path/to/input_dir /path/to/output_dir"
+    exit 1
 fi
 
-[ ! -d "$from" ] && { echo "error"; exit 1; }
-mkdir -p "$to" || { echo "error"; exit 1; }
+input_dir="$1"
+output_dir="$2"
 
-cp_file() {
-    local src=$1
-    local base=$(basename "$src")
-    local dst="$to/$base"
-    local count=1
+if [ ! -d "$input_dir" ]; then
+    echo "Входная директория не существует: $input_dir"
+    exit 1
+fi
 
-    while [ -f "$dst" ]; do
-        name=${base%.*}
-        ext=${base##*.}
-        [ "$name" = "$ext" ] && dst="$to/${base}_$count" || dst="$to/${name}_$count.$ext"
-        ((count++))
-    done
+mkdir -p "$output_dir"
 
-    cp "$src" "$dst" || echo "error" >&2
-}
+declare -A name_count
 
-walk() {
-    local dir=$1
-    local level=$2
-
-    [ -n "$depth" ] && [ "$level" -gt "$depth" ] && return
-
-    for item in "$dir"/*; do
-        [ -f "$item" ] && cp_file "$item"
-        [ -d "$item" ] && walk "$item" $((level+1))
-    done
-}
-
-walk "$from" 1
+find "$input_dir" -type f | while read -r filepath; do
+    filename="$(basename "$filepath")"
+    if [[ -e "$output_dir/$filename" || ${name_count["$filename"]+_} ]]; then
+        count=$(( ${name_count["$filename"]:-1} + 1 ))
+        name_count["$filename"]=$count
+        ext="${filename##*.}"
+        base="${filename%.*}"
+        if [[ "$base" == "$filename" ]]; then
+            newname="${base}_${count}"
+        else
+            newname="${base}_${count}.${ext}"
+        fi
+        cp "$filepath" "$output_dir/$newname"
+    else
+        name_count["$filename"]=0
+        cp "$filepath" "$output_dir/$filename"
+    fi
+done
