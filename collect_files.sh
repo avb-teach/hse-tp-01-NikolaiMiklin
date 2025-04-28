@@ -1,37 +1,35 @@
-#!/bin/bash
+#!/bin/sh
 
-if [ "$#" -ne 2 ]; then
-    echo "Использование: $0 /path/to/input_dir /path/to/output_dir"
-    exit 1
-fi
+a() {
+  [ $# -lt 2 ] && echo "Use: $0 [--d N] X Y" >&2 && return 1
+  local b=0 c d e f g h i j k l m n o p q r s t u v w x y z
+  [ "$1" = "--d" ] && b=$2 && shift 2
+  c=$1 d=$2
+  [ ! -e "$c" ] && echo "Missing X: $c" >&2 && return 1
+  mkdir -p "$d"
+  e() {
+    local f=$1 g=$2 h=$3
+    [ $b -ne 0 ] && [ $h -gt $b ] && return
+    for i in "$f"/*; do
+      if [ -f "$i" ]; then
+        j=${i##*/}
+        k=${j%.*}
+        l=${j##*.}
+        [ "$k" = "$l" ] && l="" || l=".$l"
+        m=1
+        n="$j"
+        while [ -e "$g/$n" ]; do
+          n="${k}${m}${l}"
+          m=$((m + 1))
+        done
+        cp "$i" "$g/$n"
+      elif [ -d "$i" ]; then
+        e "$i" "$g" $((h + 1))
+      fi
+    done
+  }
+  e "$c" "$d" 0
+  echo "Done: $d" >&2
+}
 
-input_dir="$1"
-output_dir="$2"
-
-if [ ! -d "$input_dir" ]; then
-    echo "Входная директория не существует: $input_dir"
-    exit 1
-fi
-
-mkdir -p "$output_dir"
-
-declare -A name_count
-
-find "$input_dir" -type f | while read -r filepath; do
-    filename="$(basename "$filepath")"
-    if [[ -e "$output_dir/$filename" || ${name_count["$filename"]+_} ]]; then
-        count=$(( ${name_count["$filename"]:-1} + 1 ))
-        name_count["$filename"]=$count
-        ext="${filename##*.}"
-        base="${filename%.*}"
-        if [[ "$base" == "$filename" ]]; then
-            newname="${base}_${count}"
-        else
-            newname="${base}_${count}.${ext}"
-        fi
-        cp "$filepath" "$output_dir/$newname"
-    else
-        name_count["$filename"]=0
-        cp "$filepath" "$output_dir/$filename"
-    fi
-done
+a "$@"
